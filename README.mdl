@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ZRC Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 30px;
+      background: url('https://cdn.pixabay.com/photo/2023/12/06/21/07/photo-8434386_1280.jpg') 
+                  no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+    }
+    .container {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-top: 20px;
+    }
+    input {
+      padding: 10px;
+      margin: 5px;
+      width: 80%;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      font-size: 16px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #45a049; }
+    #chatBox {
+      width: 90%;
+      max-width: 500px;
+      height: 300px;
+      margin: 10px auto;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      padding: 10px;
+      overflow-y: auto;
+      text-align: left;
+    }
+    .message {
+      margin: 5px 0;
+      padding: 5px 10px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Нэвтрэх хэсэг -->
+  <div class="container" id="loginSection" style="display: none;">
+    <h1>ZRC Login</h1>
+    <p>Та аккаунтаа оруулна уу?</p>
+    <input type="text" id="loginName" placeholder="Нэвтрэх нэр"><br>
+    <input type="password" id="loginPass" placeholder="Нууц үг"><br>
+    <button onclick="login()">Нэвтрэх</button>
+    <p><a href="#" onclick="showRegister()">Шинэ account нээх</a></p>
+  </div>
+
+  <!-- Бүртгэл -->
+  <div class="container" id="registerSection">
+    <h1>ZRC бүртгэл</h1>
+    <input type="email" id="regEmail" placeholder="Имэйл хаяг"><br>
+    <input type="text" id="regName" placeholder="Нэвтрэх нэр (үсэг)"><br>
+    <input type="password" id="regPass" placeholder="Нууц үг (тоо)"><br>
+    <button onclick="registerAccount()">Бүртгүүлэх</button>
+    <p><a href="#" onclick="showLogin()">Буцах</a></p>
+  </div>
+
+  <!-- Тавтай морил -->
+  <div class="container" id="welcomeSection" style="display: none;">
+    <h1>Тавтай морил, ZRC!</h1>
+    <p>Та амжилттай нэвтэрлээ.</p>
+    <button onclick="continueToInvite()">Үргэлжлүүлэх</button>
+    <button onclick="logout()">Гарах</button>
+  </div>
+
+  <!-- Урилгын код -->
+  <div class="container" id="inviteSection" style="display: none;">
+    <h1>Group Access</h1>
+    <p>Чат руу нэвтрэхийн тулд урилгын код оруулна уу.</p>
+    <input type="password" id="inviteCode" placeholder="Invite код">
+    <br>
+    <button onclick="checkInvite()">Оруулах</button>
+  </div>
+
+  <!-- Чат -->
+  <div class="container" id="chatSection" style="display: none;">
+    <h1>Group Chat</h1>
+    <div id="chatBox"></div>
+    <input type="text" id="chatInput" placeholder="Мессеж бичих...">
+    <button onclick="sendMessage()">Илгээх</button>
+    <br>
+    <button onclick="logout()">Гарах</button>
+  </div>
+
+  <!-- Firebase + JS -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    // !!! ЭНД ӨӨРИЙН CONFIG-ЭЭ ОРУУЛ !!!
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abc123"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const SECRET_CODE = "ZRC2025"; // урилгын код
+
+    // Нэвтрэх/бүртгэх
+    window.onload = function () {
+      const isLoggedIn = localStorage.getItem("isLoggedIn");
+      if (isLoggedIn === "true") {
+        showWelcome();
+      } else {
+        document.getElementById("loginSection").style.display = "block";
+        document.getElementById("registerSection").style.display = "none";
+      }
+    };
+
+    function showRegister() {
+      document.getElementById("loginSection").style.display = "none";
+      document.getElementById("registerSection").style.display = "block";
+    }
+    function showLogin() {
+      document.getElementById("registerSection").style.display = "none";
+      document.getElementById("loginSection").style.display = "block";
+    }
+    function showWelcome() {
+      document.getElementById("loginSection").style.display = "none";
+      document.getElementById("registerSection").style.display = "none";
+      document.getElementById("welcomeSection").style.display = "block";
+      document.getElementById("chatSection").style.display = "none";
+    }
+    function continueToInvite() {
+      document.getElementById("welcomeSection").style.display = "none";
+      document.getElementById("inviteSection").style.display = "block";
+    }
+    function checkInvite() {
+      const code = document.getElementById("inviteCode").value;
+      if (code === SECRET_CODE) {
+        document.getElementById("inviteSection").style.display = "none";
+        document.getElementById("chatSection").style.display = "block";
+        loadMessages();
+      } else {
+        alert("Код буруу байна!");
+      }
+    }
+
+    function registerAccount() {
+      const email = document.getElementById("regEmail").value;
+      const name = document.getElementById("regName").value;
+      const pass = document.getElementById("regPass").value;
+
+      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      const nameValid = /^[A-Za-z]+$/.test(name);
+      const passValid = /^[0-9]+$/.test(pass);
+
+      if (!emailValid) { alert("Зөв имэйл хаяг оруулна уу."); return; }
+      if (!nameValid) { alert("Нэвтрэх нэр зөвхөн үсэг байх ёстой."); return; }
+      if (!passValid) { alert("Нууц үг зөвхөн тоо байх ёстой."); return; }
+
+      localStorage.setItem("username", name);
+      localStorage.setItem("password", pass);
+      localStorage.setItem("isLoggedIn", "true");
+
+      showWelcome();
+    }
+
+    function login() {
+      const username = document.getElementById("loginName").value;
+      const password = document.getElementById("loginPass").value;
+
+      const storedUser = localStorage.getItem("username");
+      const storedPass = localStorage.getItem("password");
+
+      if (username === storedUser && password === storedPass) {
+        localStorage.setItem("isLoggedIn", "true");
+        showWelcome();
+      } else {
+        alert("Нэвтрэх нэр эсвэл нууц үг буруу байна.");
+      }
+    }
+
+    function logout() {
+      localStorage.setItem("isLoggedIn", "false");
+      document.getElementById("welcomeSection").style.display = "none";
+      document.getElementById("chatSection").style.display = "none";
+      document.getElementById("inviteSection").style.display = "none";
+      document.getElementById("loginSection").style.display = "block";
+    }
+
+    // Чат функцууд
+    function sendMessage() {
+      const input = document.getElementById("chatInput");
+      const message = input.value.trim();
+      const user = localStorage.getItem("username");
+
+      if (message === "") return;
+
+      const newMsg = { user, text: message, time: new Date().toLocaleTimeString() };
+      db.ref("messages").push(newMsg);
+
+      input.value = "";
+    }
+
+    function loadMessages() {
+      const chatBox = document.getElementById("chatBox");
+      db.ref("messages").on("value", snapshot => {
+        chatBox.innerHTML = "";
+        snapshot.forEach(child => {
+          const msg = child.val();
+          const div = document.createElement("div");
+          div.className = "message";
+          div.innerHTML = `<strong>${msg.user}</strong> [${msg.time}]: ${msg.text}`;
+          chatBox.appendChild(div);
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+  </script>
+
+</body>
+</html>
